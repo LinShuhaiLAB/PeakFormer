@@ -15,12 +15,12 @@ def get_args_parser():
 
     parser.add_argument('--ppm', default=10, help='ppm for ROI extraction')
 
-    parser.add_argument('--source', default='resources/example',
+    parser.add_argument('--source', default='resources/example/centroided',
                         help='path to raw data directory')
 
     # targeted features
     parser.add_argument('--feature',
-                        # default="resources/test_feature.csv",
+                        default="resources/example/centroided_feature.csv",
                         help='path to feature file')
 
     # CentWave for untargeted features, only set when using untargeted mode.
@@ -40,11 +40,11 @@ def get_args_parser():
     parser.add_argument('--prefilter', default=3, help='pre-filtering')
 
     # prediction
-    parser.add_argument('--images_path', default="resources/example/output",
+    parser.add_argument('--images_path', default="resources/example/centroided_output",
                         help='path to output roi files')
 
     parser.add_argument('--output',
-                        default="resources/example/output/area.csv",
+                        default="resources/example/centroided_output/area.csv",
                         help='path to output files')
 
     parser.add_argument('--threshold', default=0.99,
@@ -86,13 +86,27 @@ def main(args):
                                          args.s2n, args.noise, args.mzDiff, args.prefilter)
 
     # ROI build
+    # -若第一次已经序列化，若quantification后步骤出错（quantify及以后），可以直接注释掉框内代码重新运行
+    # ------------------------------------------------------------------
+    import pickle
+    xic_list_file = 'xic_list.pkl'
     xic_list = build_roi(paths, xic_info, args.roi_plot, args)
+    with open(xic_list_file, 'wb') as f:
+        pickle.dump(xic_list, f)
 
     #  peak detection
+    results_list_file = 'results_store.pkl'
     results = build_predictor(args.model, args.images_path, args.threshold, plot=args.plot)
+    with open(results_list_file, 'wb') as f:
+        pickle.dump(results, f)
+    # -------------------------------------------------------------------
 
     # quantification
-    area = quantify(xic_list, results, xic_info)
+    with open(xic_list_file, 'rb') as f:
+        xic_list_load = pickle.load(f)
+    with open(results_list_file, 'rb') as f:
+        results_list_load = pickle.load(f)
+    area = quantify(xic_list_load, results_list_load, xic_info)
 
     # export
     export_results(area, args.output)
